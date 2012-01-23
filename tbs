@@ -102,10 +102,7 @@ ff02::2 ip6-allrouters
 
 EOF
 
-cat <<EOF > $1/etc/resolv.conf
-nameserver 8.8.8.8
-
-EOF
+cp -v /etc/resolv.conf $1/etc/resolv.conf
 
 mkdir -p $1/boot/grub
 
