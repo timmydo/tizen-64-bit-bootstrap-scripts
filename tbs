@@ -1,0 +1,280 @@
+#!/bin/sh
+
+set -e
+
+
+ARCH="amd64"
+DEBMIRRORLINE="deb http://localhost:3142/ftp.us.debian.org/debian squeeze main"
+
+
+makebootstrap () {
+
+if [ -z "$1" ]; then echo "ROOTFS not set"; exit 1; fi
+mkdir -p $1
+echo "Running rm -rI $1"
+rm -rI $1
+mkdir -p $1/dev
+# make devices
+mknod -m622 $1/dev/console c 5 1
+mknod -m666 $1/dev/null c 1 3
+mknod -m444 $1/dev/zero c 1 5
+mknod -m644 $1/dev/random c 1 8
+mknod -m644 $1/dev/urandom c 1 9
+mknod -m666 $1/dev/tty c 5 0
+
+multistrap -a $ARCH -d $1 -f ./tizen-multistrap.conf
+
+##################################################
+# mount the proc directory and create devices
+cat <<EOF > $1/etc/fstab
+proc            /proc           proc    nodev,noexec,nosuid 0       0
+
+EOF
+
+
+#mkdir -p $1/tmp
+#cat <<EOF > $1/tmp/makedevs
+##!/bin/sh
+#set -e -x
+#mount /proc
+#cd /dev && /sbin/MAKEDEV generic
+#umount /proc
+#EOF
+#chmod 755 $1/tmp/makedevs
+#chroot $1 /tmp/makedevs
+
+##################################################
+
+
+   #put our standard fstab and network and modules files in
+if [ ! -d $1/etc/network ]; then mkdir -p $1/etc/network; fi
+if [ ! -d $1/etc/init.d ]; then mkdir -p $1/etc/init.d; fi
+if [ ! -d $1/etc/dhcp3 ]; then mkdir -p $1/etc/dhcp3; fi
+if [ ! -d $1/etc/apt/apt.conf.d/ ]; then 
+  mkdir -p $1/etc/apt/apt.conf.d/
+fi
+cat <<EOF > $1/etc/network/interfaces
+auto eth0 lo
+iface lo inet loopback
+iface eth0 inet dhcp
+
+EOF
+
+cat <<EOF > $1/etc/apt/sources.list.d/debmirror.list
+$DEBMIRRORLINE
+EOF
+
+cat <<EOF > $1/etc/modules
+lp
+rtc
+EOF
+mkdir -p $1/etc/dhcp3/
+#cp <<EOF > $1/etc/dhcp3/
+#EOF
+
+
+# save/restore script for state
+cp -v config/urandom $1/etc/init.d/
+
+
+cp -v config/inittab $1/etc/
+rm -f $1/etc/sudoers
+cat <<EOF > $1/etc/sudoers
+Defaults        env_reset
+root    ALL=(ALL:ALL) ALL
+%admin ALL=(ALL) ALL
+%sudo   ALL=(ALL:ALL) ALL
+EOF
+chmod 400 $1/etc/sudoers
+(cd $1/dev; mknod rtc c 253 0 )
+if [ -f $1/etc/apt/sources.list.d/sources.list ]; then
+   rm -v $1/etc/apt/sources.list.d/sources.list
+fi
+echo tizentest > $1/etc/hostname
+
+cat <<EOF > $1/etc/hosts
+127.0.0.1	localhost
+::1     ip6-localhost ip6-loopback
+fe00::0 ip6-localnet
+ff00::0 ip6-mcastprefix
+ff02::1 ip6-allnodes
+ff02::2 ip6-allrouters
+
+EOF
+
+cat <<EOF > $1/etc/resolv.conf
+nameserver 8.8.8.8
+
+EOF
+
+mkdir -p $1/boot/grub
+
+chroot $1 apt-get update
+chroot $1 apt-get -y install locales dialog
+echo en_US.UTF-8 UTF-8 >> $1/etc/locale.gen
+chroot $1 locale-gen
+echo "DONE CREATING $1"
+
+}
+
+
+makeimage() {
+
+if [ -z "$1" ]; then echo "ROOTFS not set"; exit 1; fi
+
+# create partition with root fs
+rm -f disk.img
+#qemu-img create -f raw disk.img 260M
+dd if=/dev/zero of=disk.img bs=512 count=532480
+sfdisk --force <<EOF disk.img
+# partition table of disk.img
+unit: sectors
+
+disk.img1 : start=     2048, size=   530432, Id=83
+disk.img2 : start=        0, size=        0, Id= 0
+disk.img3 : start=        0, size=        0, Id= 0
+disk.img4 : start=        0, size=        0, Id= 0
+
+EOF
+
+
+
+dd if=disk.img of=part.img bs=512 skip=2048
+chmod 666 disk.img
+mkfs.ext2 -F part.img
+mkdir -p diskmnt
+mount -o loop part.img diskmnt
+cp -a $1/* diskmnt
+umount diskmnt
+#losetup /dev/loop0 disk.img
+#losetup -d /dev/loop0
+
+dd if=part.img of=disk.img bs=512 seek=2048 conv=notrunc
+
+
+}
+emu() {
+if [ -z "$1" ]; then echo "ROOTFS not set"; exit 1; fi
+qemu-system-x86_64 -kernel $1/boot/vmlinuz-* -append "root=/dev/sda1 ro" -initrd $1/boot/initrd.img-* disk.img
+}
+
+
+# build the deb packages for this
+getpkgs() 
+{
+if [ -z "$1" ]; then echo "ROOTFS not set"; exit 1; fi
+
+# create helper script to install necessary packages before building
+# debs
+chroot $1 apt-get -y install cdbs debhelper libtool git \
+                   autotools-dev automake autoconf python procps
+
+cp -a config/repo $1/usr/local/bin/repo
+mkdir -p $1/usr/src/tizen
+
+# get the repo if it doesn't exist.... otherwise just update it
+if [ ! -d "$1/usr/src/tizen/.repo" ]; then
+echo "Tizen manifest not found, doing full repo checkout" >&2
+cat <<EOF > $1/setup.sh
+#!/bin/sh
+set -x -e
+mkdir -p ~
+cd /usr/src/tizen
+repo init -u git://gitorious.org/tizen-toys/tizen-manifest
+repo sync
+EOF
+else
+echo "Tizen manifest found, doing repo sync" >&2
+cat <<EOF > $1/setup.sh
+#!/bin/sh
+set -x -e
+mkdir -p ~
+cd /usr/src/tizen
+repo sync
+EOF
+fi
+chmod 755 $1/setup.sh
+chroot $1 /setup.sh
+
+
+}
+
+buildpkgs () {
+if [ -z "$1" ]; then echo "ROOTFS not set"; exit 1; fi
+
+# build the individual packages
+cat <<EOF > $1/setup.sh
+#!/bin/sh
+set -x -e
+cd /usr/src/tizen
+if [ ! -d "unmodified" ]; then
+echo "Tizen source not found in /usr/src/tizen, run $0 getpkgs"
+exit 1
+fi
+
+# get deps for cairo
+apt-get -y install pkg-config libfontconfig1-dev libfreetype6-dev libxrender-dev libx11-dev libpng12-dev libsm-dev xutils-dev libxt-dev dpatch libpixman-1-dev libxcb1-dev libxcb-render0-dev libxcb-render-util0-dev libglib2.0-dev libxcb-shm0-dev libpixman-1-dev
+
+apt-get -y install quilt
+
+PKGS="pkgs/pixman"
+
+for i in \$PKGS ; do
+    echo "Building \$i" >&2
+    (cd "\$i" && pwd && dpkg-buildpackage -b)
+done
+
+
+for i in unmodified/* ; do
+    echo "Building \$i" >&2
+    (cd "\$i" && pwd && dpkg-buildpackage -b)
+done
+
+
+EOF
+chmod 755 $1/setup.sh
+chroot $1 /setup.sh
+
+}
+
+main() {
+
+        while [ $# -ne 0 ]
+        do
+            case "$1" in
+                bootstrap) makebootstrap ./bootstrap ;;
+                bootimage) makeimage ./bootstrap;;
+                qemu) emu ./bootstrap ;;
+
+                pkgserver) makebootstrap ./pkgserver ;;
+                getpkgs) getpkgs ./pkgserver ;;
+                buildpkgs) buildpkgs ./pkgserver ;;
+
+                *) echo "$0: I don't understand $1" >&2 ;;
+            esac
+            shift
+        done
+}
+
+usage() {
+    echo "Usage: $0 <commands> ..." >&2
+    echo "" >&2
+    echo "Commands (for tizen package server...required for tizen image):" >&2
+    echo "    pkgserver - bootstrap a package server to build tizen debs on" >&2
+    echo "    getpkgs   - get packages' source code from git repo" >&2
+    echo "    buildpkgs - compile packages and make deb files" >&2
+    echo "Commands (for tizen image creation):" >&2
+    echo "    bootstrap - bootstrap a clean debian base image" >&2
+    echo "    instpkgs  - install pkgs from your tizen package server" >&2
+    echo "    bootimage - build the qemu image from a tizen root directory" >&2
+    echo "    qemu      - run emulator on tizen image" >&2
+}
+
+if [ $# -eq 0 ]; then
+usage
+exit 1
+fi
+
+main $*
+
+exit 0
