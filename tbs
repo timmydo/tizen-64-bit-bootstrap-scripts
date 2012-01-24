@@ -212,8 +212,8 @@ buildpkg() {
   if [ ! -d \$1 ]; then
   return 0
   fi
-  if stat -t debs/*\${1##*/}*.deb >/dev/null 2>&1 ; then
-  echo "Not building \$1 because we found debs/*\${1##*/}*.deb"
+  if stat -t debs/*\${1##*/}*.changes >/dev/null 2>&1 ; then
+  echo "Not building \$1 because we found debs/*\${1##*/}*.changes"
   return 0
   fi
   echo "Building \$1" >&2
@@ -250,12 +250,67 @@ apt-get -y install docbook-to-man
 # deps for glib2.0
 apt-get -y install gnome-pkg-tools gtk-doc-tools
 
+# deps for gpsd
+apt-get -y install libxaw7-dev libdbus-1-dev libdbus-glib-1-dev
+
+# deps for libgcrypt
+apt-get -y install libgpg-error-dev
+
+# deps for liboil
+apt-get -y install execstack
+
+# deps for libtheora
+apt-get -y install doxygen libogg-dev libvorbis-dev
+
+# deps for libxml2
+apt-get -y install libreadline-dev 
+
 buildpkg pkgs/pixman
 installpkg debs/libpixman-1-0_*.deb
 installpkg debs/libpixman-1-dev*.deb
 
-for i in unmodified/* ; do
-    buildpkg \$i
+for i in unmodified/[a-i]* ; do
+  buildpkg \$i
+done
+
+for i in unmodified/lib[a-v]* ; do
+  buildpkg \$i
+done
+
+buildpkg libxml2
+installpkg debs/libxml2_*.deb
+installpkg debs/libxml2-dev_*.deb
+
+# deps for libxslt
+#apt-get -y install libxml2-dev libgcrypt11-dev
+apt-get -y install libgcrypt11-dev
+
+buildpkg libxslt
+
+for i in unmodified/l[j-z]* ; do
+  buildpkg \$i
+done
+
+# deps for pkg-config
+apt-get -y install libpopt-dev
+
+for i in unmodified/[m-o]* ; do
+  buildpkg \$i
+done
+
+# deps for pango1.0
+#apt-get -y install libxft-dev
+buildpkg pkgs/xorg/lib/libxft
+installpkg debs/libxft2_*.deb
+installpkg debs/libxft-dev_*.deb
+installpkg debs/libcairo2_*.deb
+installpkg debs/libcairo2-dev_*.deb
+
+# deps for shared-mime-info
+apt-get -y install docbook-utils
+
+for i in unmodified/[p-z]* ; do
+  buildpkg \$i
 done
 
 
