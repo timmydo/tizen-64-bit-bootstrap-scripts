@@ -203,7 +203,31 @@ if [ -z "$1" ]; then echo "ROOTFS not set"; exit 1; fi
 cat <<EOF > $1/setup.sh
 #!/bin/sh
 set -x -e
+
+
+
+buildpkg() {
+# -nc is do not clean source tree
+# -tc is clean source tree
+  if [ ! -d \$1 ]; then
+  return 0
+  fi
+  if stat -t debs/*\${1##*/}*.deb >/dev/null 2>&1 ; then
+  echo "Not building \$1 because we found debs/*\${1##*/}*.deb"
+  return 0
+  fi
+  echo "Building \$1" >&2
+  (cd "\$1" && pwd && dpkg-buildpackage -nc -b && mv -fv ../*.deb /usr/src/tizen/debs && mv -fv ../*.changes /usr/src/tizen/debs)
+}
+
+installpkg() {
+  echo "Installing \$1" >&2
+  dpkg -i \$1
+}
+
 cd /usr/src/tizen
+mkdir -p /usr/src/tizen/debs
+
 if [ ! -d "unmodified" ]; then
 echo "Tizen source not found in /usr/src/tizen, run $0 getpkgs"
 exit 1
@@ -214,17 +238,24 @@ apt-get -y install pkg-config libfontconfig1-dev libfreetype6-dev libxrender-dev
 
 apt-get -y install quilt
 
-PKGS="pkgs/pixman"
+# deps for curl
+apt-get -y install automake1.9 libssl-dev libidn11-dev libc-ares-dev
 
-for i in \$PKGS ; do
-    echo "Building \$i" >&2
-    (cd "\$i" && pwd && dpkg-buildpackage -b)
-done
+# deps for dialog
+apt-get -y install libncurses5-dev
 
+# deps for expat
+apt-get -y install docbook-to-man
+
+# deps for glib2.0
+apt-get -y install gnome-pkg-tools gtk-doc-tools
+
+buildpkg pkgs/pixman
+installpkg debs/libpixman-1-0_*.deb
+installpkg debs/libpixman-1-dev*.deb
 
 for i in unmodified/* ; do
-    echo "Building \$i" >&2
-    (cd "\$i" && pwd && dpkg-buildpackage -b)
+    buildpkg \$i
 done
 
 
