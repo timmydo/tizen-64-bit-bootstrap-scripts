@@ -313,6 +313,17 @@ for i in unmodified/[p-z]* ; do
   buildpkg \$i
 done
 
+# ok now start on the main package directory
+
+# deps for acl
+apt-get -y install libattr1-dev
+mkdir -p pkgs/acl/debian/libacl1-dev/usr/share/doc/acl
+buildpkg pkgs/acl
+
+#for i in pkgs/[b-z]* ; do
+#  buildpkg \$i
+#done
+
 
 EOF
 chmod 755 $1/setup.sh
