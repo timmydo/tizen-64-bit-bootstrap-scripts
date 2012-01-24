@@ -277,7 +277,7 @@ for i in unmodified/lib[a-v]* ; do
   buildpkg \$i
 done
 
-buildpkg libxml2
+buildpkg unmodified/libxml2
 installpkg debs/libxml2_*.deb
 installpkg debs/libxml2-dev_*.deb
 
@@ -285,7 +285,7 @@ installpkg debs/libxml2-dev_*.deb
 #apt-get -y install libxml2-dev libgcrypt11-dev
 apt-get -y install libgcrypt11-dev
 
-buildpkg libxslt
+buildpkg unmodified/libxslt
 
 for i in unmodified/l[j-z]* ; do
   buildpkg \$i
