@@ -283,7 +283,7 @@ installpkg debs/libxml2-dev_*.deb
 
 # deps for libxslt
 #apt-get -y install libxml2-dev libgcrypt11-dev
-apt-get -y install libgcrypt11-dev bash
+apt-get -y install libgcrypt11-dev
 
 buildpkg unmodified/libxslt
 
