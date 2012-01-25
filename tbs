@@ -308,6 +308,7 @@ installpkg debs/libcairo2-dev_*.deb
 
 # deps for shared-mime-info
 apt-get -y install docbook-utils
+installpkg debs/libxml2-utils_*.deb
 
 for i in unmodified/[p-z]* ; do
   buildpkg \$i
