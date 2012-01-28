@@ -321,6 +321,64 @@ apt-get -y install libattr1-dev
 mkdir -p pkgs/acl/debian/libacl1-dev/usr/share/doc/acl
 buildpkg pkgs/acl
 
+
+buildpkg pkgs/dlog
+
+installpkg debs/libdlog-0_*.deb
+#installpkg debs/dlogutil-bin_*.deb
+installpkg debs/dlog-dev_*.deb
+
+buildpkg pkgs/elektra
+#installpkg debs/elektra_*.deb
+installpkg debs/libelektra-dev_*.deb
+
+buildpkg pkgs/gconf-dbus
+installpkg debs/libgconf-dbus_*.deb
+installpkg debs/libgconf-dbus-dev_*.deb
+
+buildpkg pkgs/libslp-setting
+installpkg debs/libslp-setting_*.deb
+installpkg debs/libslp-setting-dev_*.deb
+
+
+for i in pkgs/libslp* ; do
+  buildpkg \$i
+done
+
+installpkg debs/libslp-pm_*.deb
+installpkg debs/libslp-pm-dev_*.deb
+installpkg debs/libslp-db-util_*.deb
+installpkg debs/libslp-db-util-dev_*.deb
+installpkg debs/libslp-tapi_*.deb
+installpkg debs/libslp-tapi-dev_*.deb
+
+buildpkg pkgs/aul-1
+installpkg debs/libaul-1_*.deb
+installpkg debs/libaul-1-dev_*.deb
+
+buildpkg pkgs/bundle
+installpkg debs/bundle_*.deb
+installpkg debs/bundle-dev_*.deb
+
+buildpkg pkgs/app-svc
+installpkg debs/libapp-svc_*.deb
+installpkg debs/libapp-svc-dev_*.deb
+
+
+for i in pkgs/a* ; do
+  buildpkg \$i
+done
+
+# deps for bash
+apt-get -y install bison texinfo texi2html sharutils time
+
+buildpkg pkgs/base-passwd
+buildpkg pkgs/bash
+
+
+
+
+
 #for i in pkgs/[b-z]* ; do
 #  buildpkg \$i
 #done
@@ -328,7 +386,9 @@ buildpkg pkgs/acl
 
 EOF
 chmod 755 $1/setup.sh
-chroot $1 /setup.sh
+chroot $1 mount /proc
+chroot $1 /setup.sh || chroot $1 umount /proc 
+chroot $1 umount /proc
 
 }
 
