@@ -220,9 +220,24 @@ buildpkg() {
   (cd "\$1" && pwd && dpkg-buildpackage -nc -b && mv -fv ../*.deb /usr/src/tizen/debs && mv -fv ../*.changes /usr/src/tizen/debs)
 }
 
+# no dep check version
+buildpkgf() {
+# -nc is do not clean source tree
+# -tc is clean source tree
+  if [ ! -d \$1 ]; then
+  return 0
+  fi
+  if stat -t debs/*\${1##*/}*.changes >/dev/null 2>&1 ; then
+  echo "Not building \$1 because we found debs/*\${1##*/}*.changes"
+  return 0
+  fi
+  echo "Building \$1" >&2
+  (cd "\$1" && pwd && dpkg-buildpackage -nc -b -d && mv -fv ../*.deb /usr/src/tizen/debs && mv -fv ../*.changes /usr/src/tizen/debs)
+}
+
 installpkg() {
   echo "Installing \$1" >&2
-  dpkg -i \$1
+  dpkg -E -i \$1
 }
 
 cd /usr/src/tizen
@@ -334,12 +349,40 @@ installpkg debs/libelektra-dev_*.deb
 
 buildpkg pkgs/gconf-dbus
 installpkg debs/libgconf-dbus_*.deb
+installpkg debs/gconf-dbus-utils_*.deb
 installpkg debs/libgconf-dbus-dev_*.deb
 
+
+apt-get -y install cmake indent
+
+installpkg debs/libfuse-dev_*.deb
+installpkg debs/libsqlite3-0_*.deb
+installpkg debs/libsqlite3-dev_*.deb
+
+buildpkg pkgs/libcap
+installpkg debs/libcap2_*.deb
+installpkg debs/libcap2-bin_*.deb
+installpkg debs/libcap-dev_*.deb
+
+buildpkg pkgs/libsqlfs
+installpkg debs/sqlfs-bin_*.deb
+
+
+installpkg debs/libvconf-0_*.deb
+installpkg debs/libvconf-keys-dev_*.deb
+installpkg debs/libvconf-dev_*.deb
+
 buildpkg pkgs/libslp-setting
-installpkg debs/libslp-setting_*.deb
+installpkg debs/libslp-setting-0_*.deb
 installpkg debs/libslp-setting-dev_*.deb
 
+buildpkgf pkgs/libgnutls26
+installpkg debs/libgnutls26_*.deb
+installpkg debs/libgnutls-dev_*.deb
+
+buildpkg pkgs/libjson-glib
+installpkg debs/libjson-glib_*.deb
+installpkg debs/libjson-glib-dev_*.deb
 
 for i in pkgs/libslp* ; do
   buildpkg \$i
