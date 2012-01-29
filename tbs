@@ -331,6 +331,11 @@ done
 
 # ok now start on the main package directory
 
+installpkg debs/libglib2.0-0_*.deb
+installpkg debs/libglib2.0-bin_*.deb
+installpkg debs/libglib2.0-dev_*.deb
+
+
 # deps for acl
 apt-get -y install libattr1-dev
 mkdir -p pkgs/acl/debian/libacl1-dev/usr/share/doc/acl
