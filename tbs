@@ -372,12 +372,12 @@ installpkg debs/libcap-dev_*.deb
 buildpkg pkgs/libsqlfs
 installpkg debs/sqlfs-bin_*.deb
 
-
+buildpkg pkgs/libslp-setting
 installpkg debs/libvconf-0_*.deb
 installpkg debs/libvconf-keys-dev_*.deb
 installpkg debs/libvconf-dev_*.deb
 
-buildpkg pkgs/libslp-setting
+
 installpkg debs/libslp-setting-0_*.deb
 installpkg debs/libslp-setting-dev_*.deb
 
