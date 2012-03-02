@@ -205,6 +205,21 @@ cat <<EOF > $1/setup.sh
 set -x -e
 
 
+pkgoutput() {
+egrep '^Package: ' \$1/debian/control | egrep -v 'dbg|doc' | awk '{print \$2}' | while read i ; do echo debs/\${i}_*.deb; done
+}
+
+pkgchangefile() {
+egrep '^Source: ' \$1/debian/control | awk '{print \$2}' | head -n 1
+}
+
+bipkg() {
+echo "Building and installing \$1"
+buildpkg \$1
+echo Installing \`pkgoutput \$1\`
+dpkg -E -i \`pkgoutput \$1\`
+
+}
 
 buildpkg() {
 # -nc is do not clean source tree
@@ -212,7 +227,9 @@ buildpkg() {
   if [ ! -d \$1 ]; then
   return 0
   fi
-  if stat -t debs/*\${1##*/}*.changes >/dev/null 2>&1 ; then
+  changefilename=\`pkgchangefile \$1\`
+  echo Looking for debs/\$changefilename*.changes
+  if stat -t debs/\$changefilename*.changes >/dev/null 2>&1 ; then
   echo "Not building \$1 because we found debs/*\${1##*/}*.changes"
   return 0
   fi
@@ -227,7 +244,9 @@ buildpkgf() {
   if [ ! -d \$1 ]; then
   return 0
   fi
-  if stat -t debs/*\${1##*/}*.changes >/dev/null 2>&1 ; then
+  changefilename=\`pkgchangefile \$1\`
+  echo Looking for debs/\$changefilename*.changes
+  if stat -t debs/\$changefilename*.changes >/dev/null 2>&1 ; then
   echo "Not building \$1 because we found debs/*\${1##*/}*.changes"
   return 0
   fi
@@ -237,7 +256,7 @@ buildpkgf() {
 
 installpkg() {
   echo "Installing \$1" >&2
-  dpkg -E -i \$1
+  dpkg -E -i debs/\$1_*.deb
 }
 
 cd /usr/src/tizen
@@ -281,8 +300,8 @@ apt-get -y install doxygen libogg-dev libvorbis-dev
 apt-get -y install libreadline-dev 
 
 buildpkg pkgs/pixman
-installpkg debs/libpixman-1-0_*.deb
-installpkg debs/libpixman-1-dev*.deb
+installpkg libpixman-1-0
+installpkg libpixman-1-dev
 
 for i in unmodified/[a-i]* ; do
   buildpkg \$i
@@ -292,9 +311,10 @@ for i in unmodified/lib[a-v]* ; do
   buildpkg \$i
 done
 
-buildpkg unmodified/libxml2
-installpkg debs/libxml2_*.deb
-installpkg debs/libxml2-dev_*.deb
+
+
+bipkg unmodified/libxml2
+
 
 # deps for libxslt
 #apt-get -y install libxml2-dev libgcrypt11-dev
@@ -309,6 +329,40 @@ done
 # deps for pkg-config
 apt-get -y install libpopt-dev
 
+# deps for osmesa
+apt-get -y install libxxf86vm-dev libxfixes-dev libxdamage-dev flex bison libudev-dev x11proto-dri2-dev libx11-xcb-dev texinfo
+
+#libxcb-xfixes0-dev libxcb-dri2-0-dev
+bipkg pkgs/xorg/xcb/xcb-proto
+#installpkg xcb-proto
+#installpkg python-xcbgen
+
+buildpkg pkgs/check
+installpkg check
+
+buildpkg pkgs/xorg/xcb/libxcb
+installpkg libxcb1
+installpkg libxcb1-dev
+
+installpkg libxcb-dri2-0
+installpkg libxcb-dri2-0-dev
+
+buildpkg pkgs/xorg/lib/libpciaccess
+installpkg libpciaccess0
+installpkg libpciaccess-dev
+
+
+buildpkg pkgs/xorg/lib/libdrm
+installpkg libdrm2
+installpkg libdrm-slp1
+installpkg libdrm-dev
+installpkg libxcb-shape0
+installpkg libxcb-shape0-dev
+installpkg libxcb-xfixes0
+installpkg libxcb-xfixes0-dev
+
+apt-get -y install python-libxml2
+
 for i in unmodified/[m-o]* ; do
   buildpkg \$i
 done
@@ -316,14 +370,14 @@ done
 # deps for pango1.0
 #apt-get -y install libxft-dev
 buildpkg pkgs/xorg/lib/libxft
-installpkg debs/libxft2_*.deb
-installpkg debs/libxft-dev_*.deb
-installpkg debs/libcairo2_*.deb
-installpkg debs/libcairo2-dev_*.deb
+installpkg libxft2
+installpkg libxft-dev
+installpkg libcairo2
+installpkg libcairo2-dev
 
 # deps for shared-mime-info
 apt-get -y install docbook-utils
-installpkg debs/libxml2-utils_*.deb
+installpkg libxml2-utils
 
 for i in unmodified/[p-z]* ; do
   buildpkg \$i
@@ -331,9 +385,9 @@ done
 
 # ok now start on the main package directory
 
-installpkg debs/libglib2.0-0_*.deb
-installpkg debs/libglib2.0-bin_*.deb
-installpkg debs/libglib2.0-dev_*.deb
+installpkg libglib2.0-0
+installpkg libglib2.0-bin
+installpkg libglib2.0-dev
 
 
 # deps for acl
@@ -344,73 +398,109 @@ buildpkg pkgs/acl
 
 buildpkg pkgs/dlog
 
-installpkg debs/libdlog-0_*.deb
-#installpkg debs/dlogutil-bin_*.deb
-installpkg debs/dlog-dev_*.deb
+installpkg libdlog-0
+#installpkg dlogutil-bin
+installpkg dlog-dev
 
 buildpkg pkgs/elektra
-#installpkg debs/elektra_*.deb
-installpkg debs/libelektra-dev_*.deb
+#installpkg elektra
+installpkg libelektra-dev
 
 buildpkg pkgs/gconf-dbus
-installpkg debs/libgconf-dbus_*.deb
-installpkg debs/gconf-dbus-utils_*.deb
-installpkg debs/libgconf-dbus-dev_*.deb
+installpkg libgconf-dbus
+installpkg gconf-dbus-utils
+installpkg libgconf-dbus-dev
 
 
 apt-get -y install cmake indent
 
-installpkg debs/libfuse-dev_*.deb
-installpkg debs/libsqlite3-0_*.deb
-installpkg debs/libsqlite3-dev_*.deb
+installpkg libfuse-dev
+installpkg libsqlite3-0
+installpkg libsqlite3-dev
 
-buildpkg pkgs/libcap
-installpkg debs/libcap2_*.deb
-installpkg debs/libcap2-bin_*.deb
-installpkg debs/libcap-dev_*.deb
+bipkg pkgs/libcap
+installpkg libcap2
+installpkg libcap2-bin
+installpkg libcap-dev
 
 buildpkg pkgs/libsqlfs
-installpkg debs/sqlfs-bin_*.deb
+installpkg sqlfs-bin
 
 buildpkg pkgs/libslp-setting
-installpkg debs/libvconf-0_*.deb
-installpkg debs/libvconf-keys-dev_*.deb
-installpkg debs/libvconf-dev_*.deb
+installpkg libvconf-0
+installpkg libvconf-keys-dev
+installpkg libvconf-dev
 
 
-installpkg debs/libslp-setting-0_*.deb
-installpkg debs/libslp-setting-dev_*.deb
+installpkg libslp-setting-0
+installpkg libslp-setting-dev
 
 buildpkgf pkgs/libgnutls26
-installpkg debs/libgnutls26_*.deb
-installpkg debs/libgnutls-dev_*.deb
+installpkg libgnutls26
+installpkg libgnutls-dev
 
-buildpkg pkgs/libjson-glib
-installpkg debs/libjson-glib_*.deb
-installpkg debs/libjson-glib-dev_*.deb
+bipkg pkgs/libjson-glib
+
+
+apt-get -y install sqlite3
+
+bipkg pkgs/libslp-db-util
+bipkg pkgs/libslp-pm
+bipkg pkgs/heynoti
+bipkg pkgs/bundle
+bipkg pkgs/eina
+bipkg pkgs/libjpeg8
+bipkg pkgs/eet
+bipkg pkgs/xorg/proto/x11proto-gesture
+bipkg pkgs/xorg/lib/libxgesture
+bipkg pkgs/opengl-es
+bipkg pkgs/harfbuzz
+
+bipkg pkgs/evas
+bipkg pkgs/xorg/lib/libxcursor
+bipkg pkgs/xorg/lib/libxinerama
+bipkg pkgs/xorg/lib/libxrandr
+bipkg pkgs/xorg/lib/libxcomposite
+bipkg pkgs/xorg/lib/libxtst
+
+
+buildpkg pkgs/ecore
+installpkg libecore
+installpkg libecore-dev
+
+
+
+buildpkg pkgs/aul-1
+installpkg libaul-1
+installpkg libaul-1-dev
+
+
+buildpkg pkgs/alarm-manager
+installpkg libalarm
+
 
 for i in pkgs/libslp* ; do
   buildpkg \$i
 done
 
-installpkg debs/libslp-pm_*.deb
-installpkg debs/libslp-pm-dev_*.deb
-installpkg debs/libslp-db-util_*.deb
-installpkg debs/libslp-db-util-dev_*.deb
-installpkg debs/libslp-tapi_*.deb
-installpkg debs/libslp-tapi-dev_*.deb
+installpkg libslp-pm
+installpkg libslp-pm-dev
+installpkg libslp-db-util
+installpkg libslp-db-util-dev
+installpkg libslp-tapi
+installpkg libslp-tapi-dev
 
 buildpkg pkgs/aul-1
-installpkg debs/libaul-1_*.deb
-installpkg debs/libaul-1-dev_*.deb
+installpkg libaul-1
+installpkg libaul-1-dev
 
 buildpkg pkgs/bundle
-installpkg debs/bundle_*.deb
-installpkg debs/bundle-dev_*.deb
+installpkg bundle
+installpkg bundle-dev
 
 buildpkg pkgs/app-svc
-installpkg debs/libapp-svc_*.deb
-installpkg debs/libapp-svc-dev_*.deb
+installpkg libapp-svc
+installpkg libapp-svc-dev
 
 
 for i in pkgs/a* ; do
@@ -434,7 +524,7 @@ buildpkg pkgs/bash
 
 EOF
 chmod 755 $1/setup.sh
-chroot $1 mount /proc
+chroot $1 mount /proc || echo not mounting /proc
 chroot $1 /setup.sh || chroot $1 umount /proc 
 chroot $1 umount /proc
 
