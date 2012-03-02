@@ -268,7 +268,7 @@ exit 1
 fi
 
 # get deps for cairo
-apt-get -y install pkg-config libfontconfig1-dev libfreetype6-dev libxrender-dev libx11-dev libpng12-dev libsm-dev xutils-dev libxt-dev dpatch libpixman-1-dev libxcb1-dev libxcb-render0-dev libxcb-render-util0-dev libglib2.0-dev libxcb-shm0-dev libpixman-1-dev
+apt-get -y install pkg-config dpatch
 
 apt-get -y install quilt
 
@@ -285,7 +285,7 @@ apt-get -y install docbook-to-man
 apt-get -y install gnome-pkg-tools gtk-doc-tools
 
 # deps for gpsd
-apt-get -y install libxaw7-dev libdbus-1-dev libdbus-glib-1-dev
+#apt-get -y install libxaw7-dev libdbus-1-dev libdbus-glib-1-dev
 
 # deps for libgcrypt
 apt-get -y install libgpg-error-dev
@@ -330,7 +330,7 @@ done
 apt-get -y install libpopt-dev
 
 # deps for osmesa
-apt-get -y install libxxf86vm-dev libxfixes-dev libxdamage-dev flex bison libudev-dev x11proto-dri2-dev libx11-xcb-dev texinfo
+apt-get -y install flex bison libudev-dev texinfo
 
 #libxcb-xfixes0-dev libxcb-dri2-0-dev
 bipkg pkgs/xorg/xcb/xcb-proto
@@ -340,26 +340,17 @@ bipkg pkgs/xorg/xcb/xcb-proto
 buildpkg pkgs/check
 installpkg check
 
-buildpkg pkgs/xorg/xcb/libxcb
-installpkg libxcb1
-installpkg libxcb1-dev
-
-installpkg libxcb-dri2-0
-installpkg libxcb-dri2-0-dev
-
-buildpkg pkgs/xorg/lib/libpciaccess
-installpkg libpciaccess0
-installpkg libpciaccess-dev
+bipkg pkgs/xorg/xcb/libxcb
+bipkg pkgs/xorg/lib/libpciaccess
+bipkg pkgs/xorg/lib/libdrm
 
 
-buildpkg pkgs/xorg/lib/libdrm
-installpkg libdrm2
-installpkg libdrm-slp1
-installpkg libdrm-dev
-installpkg libxcb-shape0
-installpkg libxcb-shape0-dev
-installpkg libxcb-xfixes0
-installpkg libxcb-xfixes0-dev
+#bipkg pkgs/xorg/proto/x11proto-xf86vidmode
+#bipkg pkgs/xorg/proto/x11proto-xf86misc
+bipkg pkgs/xorg/util/xutils-dev/
+bipkg pkgs/xorg/proto/x11proto-xf86bigfont
+bipkg pkgs/xorg/lib/libx11
+
 
 apt-get -y install python-libxml2
 
@@ -454,6 +445,7 @@ bipkg pkgs/eet
 bipkg pkgs/xorg/proto/x11proto-gesture
 bipkg pkgs/xorg/lib/libxgesture
 bipkg pkgs/opengl-es
+bipkg pkgs/ragel
 bipkg pkgs/harfbuzz
 
 bipkg pkgs/evas
